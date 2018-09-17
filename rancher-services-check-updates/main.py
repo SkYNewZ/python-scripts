@@ -9,34 +9,68 @@ import requests
 from requests.auth import HTTPBasicAuth
 from terminaltables import AsciiTable
 
-logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%d/%m/%Y %H:%M:%S', level=logging.INFO)
-parser = argparse.ArgumentParser()
+logging.basicConfig(
+    format='%(asctime)s %(message)s',
+    datefmt='%d/%m/%Y %H:%M:%S',
+    level=logging.INFO
+)
+PARSER = argparse.ArgumentParser()
 
-parser.add_argument(
+PARSER.add_argument(
     '--rancher-url',
     help='Rancher server url',
     type=str,
     required=True
 )
-parser.add_argument(
+PARSER.add_argument(
     '--rancher-access-key',
     help='Rancher API access key',
     type=str,
     required=True
 )
-parser.add_argument(
+PARSER.add_argument(
     '--rancher-secret-key',
     help='Rancher API secret key',
     type=str,
     required=True
 )
-args = parser.parse_args()
+PARSER.add_argument(
+    '--docker-username',
+    help='Your DockerHub username (mandatory if you have private private registries)',
+    type=str,
+    required=False
+)
+PARSER.add_argument(
+    '--docker-password',
+    help='Your DockerHub password (mandatory if you have private private registries)',
+    type=str,
+    required=False
+)
+PARSER.add_argument(
+    '--quiet',
+    '-q',
+    help='Don\'t show result tab in console',
+    type=bool,
+    required=False,
+    choices=[True, False]
+)
+PARSER.add_argument(
+    '--no-html',
+    help='Don\'t show result tab in your browser',
+    type=bool,
+    required=False,
+    choices=[True, False]
+)
+ARGS = PARSER.parse_args()
 
 DOCKER_REGISTRY_API_URL = 'https://registry.hub.docker.com/v2'
 DOCKER_REGISTRY_TAGS_LIST_ENDPOINT = '/repositories/{}/tags/'
 DOCKER_HUB_URL = 'https://hub.docker.com'
 
-RANCHER_SERVER_URL = args.rancher_url
+DOCKER_HUB_USERNAME = ARGS.docker_username
+DOCKER_HUB_PASSWORD = ARGS.docker_password
+
+RANCHER_SERVER_URL = ARGS.rancher_url
 RANCHER_API_URL = RANCHER_SERVER_URL + '/v2-beta'
 RANCHER_API_STACKS_LIST_ENDPOINTS = '/stacks'
 RANCHER_API_SERVICES_LIST_PER_STACK = RANCHER_API_STACKS_LIST_ENDPOINTS + '/{}/services'
@@ -63,13 +97,19 @@ def get_tags_list(image_name):
 
 def get_rancher_services_list():
     """
-    :return: array of all services that are not system
+    :return: array of all system services
     """
     service_list = []
-    stacks = get_request(RANCHER_API_URL + RANCHER_API_STACKS_LIST_ENDPOINTS + '?system=false', True)
+    stacks = get_request(
+        RANCHER_API_URL + RANCHER_API_STACKS_LIST_ENDPOINTS + '?system=false',
+        True
+    )
 
     for stack in stacks['data']:
-        services = get_request(RANCHER_API_URL + RANCHER_API_SERVICES_LIST_PER_STACK.format(stack['id']), True)
+        services = get_request(
+            RANCHER_API_URL + RANCHER_API_SERVICES_LIST_PER_STACK.format(stack['id']),
+            True
+        )
 
         stack_detail = {'name': stack['name'], 'services': []}
         for service in services['data']:
@@ -101,9 +141,25 @@ def get_last_tag(image_name):
     :param image_name: repository or official image
     :return: last tag. Return 'latest' if it is the only one
     """
-    r = get_request(DOCKER_REGISTRY_API_URL + DOCKER_REGISTRY_TAGS_LIST_ENDPOINT.format(image_name))
+    url = DOCKER_REGISTRY_API_URL + DOCKER_REGISTRY_TAGS_LIST_ENDPOINT.format(image_name)
+    # Main request
+    r = get_request(url)
     if 'results' not in r:
-        return 'undefined (Private repo ?)'
+        # If no result, try to authenticate
+        ask = input('Image {} unknown\nDo you want to try with your DockerHub credentials ? (y/n) '.format(image_name))
+        if ask == 'y' or ask == 'Y' or ask == 'yes':
+            global DOCKER_HUB_USERNAME
+            global DOCKER_HUB_PASSWORD
+            DOCKER_HUB_USERNAME = input('Username ? ')
+            DOCKER_HUB_PASSWORD = input('Password ? ')
+            r = get_request(url, jwt_auth=True, token=get_docker_token())
+            if 'results' not in r:
+                logging.error('Invalid password or username, by pass')
+                return 'undefined'
+        else:
+            return 'undefined (Private repository ?)'
+
+    # on each case, return the last tag
     for tag in r['results']:
         if tag['name'] != 'latest':
             return tag['name']
@@ -139,17 +195,29 @@ def valid_registry(image_name):
     return True
 
 
-def get_request(url, auth=False):
+def get_request(url, basic_auth=False, jwt_auth=False, token=''):
     """
     Send a GET request
+    :param token: Bearer token
+    :param jwt_auth: if its need a Bearer token
+    :param basic_auth: if it is a rancher authentication
     :param url: URL to reach
-    :param auth: if it is a rancher authentification
     :return: the JSON result
     """
     logging.info('Reaching url : {}'.format(url))
-    if auth:
-        return requests.get(url, auth=HTTPBasicAuth(args.rancher_access_key, args.rancher_secret_key)).json()
+    if basic_auth:
+        return requests.get(url, auth=HTTPBasicAuth(ARGS.rancher_access_key, ARGS.rancher_secret_key)).json()
+
+    elif jwt_auth:
+        return requests.get(url, headers={'Authorization': 'Bearer {}'.format(token)}).json()
+
     return requests.get(url).json()
+
+
+def get_docker_token():
+    r = requests.post('https://hub.docker.com/v2/users/login/',
+                      data={'username': DOCKER_HUB_USERNAME, 'password': DOCKER_HUB_PASSWORD}).json()
+    return r['token']
 
 
 def get_formatted_array_result(results):
@@ -219,12 +287,14 @@ def html_file(results):
 if __name__ == '__main__':
     # Start main process
     logging.info('Start searching with params : \n\t{}'.format(
-        '\n\t'.join(['%s:: %s' % (key, value) for (key, value) in vars(args).items()])))
+        '\n\t'.join(['%s:: %s' % (key, value) for (key, value) in vars(ARGS).items()])))
     # Get array of services list per stack
     r = get_formatted_array_result(is_it_the_latest_tag())
 
     # Draw table with it
-    draw_table(r)
+    if not ARGS.quiet:
+        draw_table(r)
 
     # Render an HTML table with it
-    html_file(r)
+    if not ARGS.no_html:
+        html_file(r)
