@@ -10,7 +10,7 @@ This script will get all your services in your given API key's environment and s
 ## Install
 ```sh
 $ git clone git@github.com:SkYNewZ/python-scripts.git
-$ cd rancher-services-check-updates
+$ cd python-scripts/rancher-services-check-updates
 $ chmod +x main.py
 ```
 

@@ -10,7 +10,7 @@ Simple python script for search a server into [Kimsufi server page](https://www.
 ## Install
 ```sh
 $ git clone git@github.com:SkYNewZ/python-scripts.git
-$ cd kimsufi
+$ cd python-scripts/kimsufi
 $ chmod +x verify-server-availabilty-kimsufi.py
 ```
 
