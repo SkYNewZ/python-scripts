@@ -18,6 +18,9 @@ $ chmod +x main.py
 ```bash
 usage: main.py [-h] --rancher-url RANCHER_URL --rancher-access-key
                RANCHER_ACCESS_KEY --rancher-secret-key RANCHER_SECRET_KEY
+               [--docker-username DOCKER_USERNAME]
+               [--docker-password DOCKER_PASSWORD] [--quiet {True,False}]
+               [--no-html {True,False}]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -27,6 +30,16 @@ optional arguments:
                         Rancher API access key
   --rancher-secret-key RANCHER_SECRET_KEY
                         Rancher API secret key
+  --docker-username DOCKER_USERNAME
+                        Your DockerHub username (mandatory if you have private
+                        private registries)
+  --docker-password DOCKER_PASSWORD
+                        Your DockerHub password (mandatory if you have private
+                        private registries)
+  --quiet {True,False}, -q {True,False}
+                        Don't show result tab in console
+  --no-html {True,False}
+                        Don't show result tab in your browser
 ```
 
 ## Report
