@@ -20,7 +20,7 @@ usage: main.py [-h] --rancher-url RANCHER_URL --rancher-access-key
                RANCHER_ACCESS_KEY --rancher-secret-key RANCHER_SECRET_KEY
                [--docker-username DOCKER_USERNAME]
                [--docker-password DOCKER_PASSWORD] [--quiet {True,False}]
-               [--no-html {True,False}]
+               [--report REPORT]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -38,8 +38,8 @@ optional arguments:
                         private registries)
   --quiet {True,False}, -q {True,False}
                         Don't show result tab in console
-  --no-html {True,False}
-                        Don't show result tab in your browser
+  --report REPORT       Generate report as HTML file. Example --report=my-
+                        report.html
 ```
 
 ## Report

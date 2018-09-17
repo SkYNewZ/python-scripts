@@ -52,14 +52,14 @@ PARSER.add_argument(
     help='Don\'t show result tab in console',
     type=bool,
     required=False,
-    choices=[True, False]
+    choices=[True, False],
+    default=False
 )
 PARSER.add_argument(
-    '--no-html',
-    help='Don\'t show result tab in your browser',
-    type=bool,
+    '--report',
+    help='Generate report as HTML file. Example --report=my-report.html',
+    type=str,
     required=False,
-    choices=[True, False]
 )
 ARGS = PARSER.parse_args()
 
@@ -77,8 +77,8 @@ RANCHER_API_SERVICES_LIST_PER_STACK = RANCHER_API_STACKS_LIST_ENDPOINTS + '/{}/s
 
 UNWANTED_REGISTRY = ['registry.gitlab.com', 'quaio.io']
 
-REPORT_FILE_NAME_TEMPLATE = 'report-template.html'
-REPORT_FILE_NAME = 'report.html'
+REPORT_FILE_NAME_TEMPLATE = 'report.template'
+REPORT_FILE_NAME = ARGS.report
 
 
 def get_tags_list(image_name):
@@ -145,19 +145,23 @@ def get_last_tag(image_name):
     # Main request
     r = get_request(url)
     if 'results' not in r:
+        global DOCKER_HUB_USERNAME
+        global DOCKER_HUB_PASSWORD
         # If no result, try to authenticate
-        ask = input('Image {} unknown\nDo you want to try with your DockerHub credentials ? (y/n) '.format(image_name))
-        if ask == 'y' or ask == 'Y' or ask == 'yes':
-            global DOCKER_HUB_USERNAME
-            global DOCKER_HUB_PASSWORD
-            DOCKER_HUB_USERNAME = input('Username ? ')
-            DOCKER_HUB_PASSWORD = input('Password ? ')
-            r = get_request(url, jwt_auth=True, token=get_docker_token())
-            if 'results' not in r:
-                logging.error('Invalid password or username, by pass')
-                return 'undefined'
-        else:
-            return 'undefined (Private repository ?)'
+        if not DOCKER_HUB_PASSWORD or not DOCKER_HUB_USERNAME:
+            # Ask for credentials if not set on cli
+            ask = input(
+                'Image {} unknown\nDo you want to try with your DockerHub credentials ? (y/n) '.format(image_name))
+            if ask == 'y' or ask == 'Y' or ask == 'yes':
+                DOCKER_HUB_USERNAME = input('Username ? ')
+                DOCKER_HUB_PASSWORD = input('Password ? ')
+            else:
+                return 'undefined (Private repository ?)'
+
+        r = get_request(url, jwt_auth=True, token=get_docker_token())
+        if 'results' not in r:
+            logging.error('Invalid password or username, by pass')
+            return 'undefined'
 
     # on each case, return the last tag
     for tag in r['results']:
@@ -217,7 +221,9 @@ def get_request(url, basic_auth=False, jwt_auth=False, token=''):
 def get_docker_token():
     r = requests.post('https://hub.docker.com/v2/users/login/',
                       data={'username': DOCKER_HUB_USERNAME, 'password': DOCKER_HUB_PASSWORD}).json()
-    return r['token']
+    if 'token' in r:
+        return r['token']
+    return False
 
 
 def get_formatted_array_result(results):
@@ -296,5 +302,5 @@ if __name__ == '__main__':
         draw_table(r)
 
     # Render an HTML table with it
-    if not ARGS.no_html:
+    if ARGS.report:
         html_file(r)
