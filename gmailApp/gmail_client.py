@@ -52,14 +52,16 @@ class GmailApp:
         :param fields:
         :return:
         """
-        params = {}
-        params['userId'] = userId
-        params['labelIds'] = labelIds
-        params['q'] = q
-        params['pageToken'] = pageToken
-        params['maxResults'] = maxResults
-        params['includeSpamTrash'] = includeSpamTrash
-        params['fields'] = fields
+        params = {
+            'userId': userId,
+            'labelIds': labelIds,
+            'q': q,
+            'pageToken': pageToken,
+            'maxResults': maxResults,
+            'includeSpamTrash': includeSpamTrash,
+            'fields': fields,
+        }
+
         return self.__service.users().messages().list(**params).execute()
 
     def deleteMessages(self, ids, userId='me'):
@@ -72,8 +74,7 @@ class GmailApp:
         if not isinstance(ids, list):
             raise ValueError('Ids should be a list of id')
         else:
-            body = {}
-            body['ids'] = ids
+            body = {'ids': ids}
             return self.__service.users().messages().batchDelete(userId=userId, body=body).execute()
 
     def trashMessages(self, messageId, userId='me'):

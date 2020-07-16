@@ -125,7 +125,7 @@ if __name__ == '__main__':
                   you=args.target,
                   message='Purchase link : https://www.kimsufi.com/fr/commande/kimsufi.xml?reference=' + args.server,
                   subject=MAIL_SUBJECT.format(args.server))
-        logging.info('Done.')
     else:
         logging.info(args.server + ' not found.')
-        logging.info('Done.')
+
+    logging.info('Done.')

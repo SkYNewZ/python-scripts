@@ -152,16 +152,16 @@ def get_last_tag(image_name):
             # Ask for credentials if not set on cli
             ask = input(
                 'Image {} unknown\nDo you want to try with your DockerHub credentials ? (y/n) '.format(image_name))
-            if ask == 'y' or ask == 'Y' or ask == 'yes':
+            if ask in ['y', 'Y', 'yes']:
                 DOCKER_HUB_USERNAME = input('Username ? ')
                 DOCKER_HUB_PASSWORD = input('Password ? ')
             else:
                 return 'undefined (Private repository ?)'
 
         r = get_request(url, jwt_auth=True, token=get_docker_token())
-        if 'results' not in r:
-            logging.error('Invalid password or username, by pass')
-            return 'undefined'
+    if 'results' not in r:
+        logging.error('Invalid password or username, by pass')
+        return 'undefined'
 
     # on each case, return the last tag
     for tag in r['results']:
